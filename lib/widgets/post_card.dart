@@ -1,439 +1,304 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../models/supabase_models.dart';
-import '../constants/app_colors.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
+import '../core/formatters.dart';
+import '../core/theme.dart';
+import '../models/feed.dart';
+import 'common.dart';
+
+/// Cartão de post do feed: autor, conteúdo, foto e as ações sociais.
 class PostCard extends StatelessWidget {
-  final Post post;
-  final bool isAdmin;
-  final bool canEdit;
-  final bool canDelete;
-  final VoidCallback? onLike;
-  final VoidCallback? onUnlike;
-  final VoidCallback? onDelete;
-  final VoidCallback? onEdit;
-  final VoidCallback? onComment;
-  final bool showComments;
-  /// Quando false, não envolve em Card (para ser usado dentro de um Card único com comentários).
-  final bool embedInCard;
-  /// Post é exclusivo para assinantes.
-  final bool isMembersOnly;
-  /// Usuário tem permissão para ver conteúdo exclusivo (assinatura ativa).
-  final bool canAccessPost;
-
   const PostCard({
     super.key,
     required this.post,
-    this.isAdmin = false,
-    this.canEdit = false,
-    this.canDelete = false,
-    this.onLike,
-    this.onUnlike,
+    required this.onLike,
+    required this.onComment,
+    this.onOpenProfile,
     this.onDelete,
-    this.onEdit,
-    this.onComment,
-    this.showComments = false,
-    this.embedInCard = true,
-    this.isMembersOnly = false,
-    this.canAccessPost = true,
   });
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) {
-          return 'Agora';
-        }
-        return '${difference.inMinutes}m';
-      }
-      return '${difference.inHours}h';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d';
-    } else {
-      return DateFormat('dd/MM/yyyy').format(date);
-    }
-  }
+  final FeedPost post;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+  final VoidCallback? onOpenProfile;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final displayName = post.author?.nickname ?? post.author?.fullName ?? 'Usuário';
-    final isEdited = post.updatedAt != null &&
-        post.updatedAt!.isAfter(post.createdAt);
-
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Header
-        Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // Avatar
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  backgroundImage: post.author?.avatarUrl != null
-                      ? CachedNetworkImageProvider(post.author!.avatarUrl!)
-                      : null,
-                  child: post.author?.avatarUrl == null
-                      ? Text(
-                          (post.author?.fullName ?? 'U')[0].toUpperCase(),
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
+    return WorkutCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onOpenProfile,
+                child: WorkutAvatar(
+                  url: post.avatar,
+                  name: post.authorName,
+                  size: 44,
                 ),
-                const SizedBox(width: 12),
-                // Nome e data
-                Expanded(
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: onOpenProfile,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            displayName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          if (post.isPinned) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.push_pin,
-                                    size: 12,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    'Fixado',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          if (isMembersOnly) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.workspace_premium,
-                                    size: 12,
-                                    color: Colors.amber.shade700,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    'Exclusivo',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.amber.shade700,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        post.authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                       const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Text(
-                            _formatDate(post.createdAt),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          if (isEdited) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '• editado',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        Format.timeAgo(post.createdAt),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: WorkutColors.muted,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                // Menu de opções
-                if (canEdit || canDelete || isAdmin)
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_horiz,
-                      color: AppColors.textSecondary,
-                    ),
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          onEdit?.call();
-                          break;
-                        case 'delete':
-                          onDelete?.call();
-                          break;
-                        case 'pin':
-                          // TODO: Implementar fixar/desfixar
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      if (canEdit)
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 18),
-                              SizedBox(width: 8),
-                              Text('Editar'),
-                            ],
-                          ),
-                        ),
-                      if (isAdmin)
-                        PopupMenuItem(
-                          value: 'pin',
-                          child: Row(
-                            children: [
-                              Icon(
-                                post.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(post.isPinned ? 'Desfixar' : 'Fixar'),
-                            ],
-                          ),
-                        ),
-                      if (canDelete)
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 18, color: AppColors.error),
-                              SizedBox(width: 8),
-                              Text('Excluir', style: TextStyle(color: AppColors.error)),
-                            ],
-                          ),
-                        ),
-                    ],
+              ),
+              if (post.isWorkout)
+                const WorkutTag(
+                  label: 'Treino',
+                  icon: Icons.fitness_center_rounded,
+                ),
+              if (onDelete != null)
+                IconButton(
+                  onPressed: onDelete,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.more_horiz_rounded,
+                    color: WorkutColors.muted,
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-
-          // Conteúdo (bloqueado para exclusivo sem acesso ou conteúdo normal)
-          if (isMembersOnly && !canAccessPost) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary.withOpacity(0.06),
-                    AppColors.primary.withOpacity(0.02),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.lock_outline_rounded,
-                      size: 36,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Conteúdo Exclusivo',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      'Disponível apenas para membros com assinatura ativa.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.35,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          if (post.content.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              post.content,
+              style: const TextStyle(fontSize: 15, height: 1.45),
             ),
-          ] else ...[
-            if (post.content != null && post.content!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  post.content!,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-
-            // Imagem
-            if (post.imageUrl != null || (post.imageUrls != null && post.imageUrls!.isNotEmpty))
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: CachedNetworkImage(
-                  imageUrl: post.imageUrl ?? post.imageUrls!.first,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (context, url) => Container(
-                    height: 300,
-                    color: AppColors.background,
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    height: 300,
-                    color: AppColors.background,
-                    child: const Icon(Icons.error),
-                  ),
-                ),
-              ),
-
-            // Ações (Like, Comment)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  // Like
-                  InkWell(
-                    onTap: post.userLiked ? onUnlike : onLike,
-                    child: Row(
-                      children: [
-                        Icon(
-                          post.userLiked ? Icons.favorite : Icons.favorite_border,
-                          color: post.userLiked ? AppColors.error : AppColors.textSecondary,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${post.likesCount}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  // Comment
-                  InkWell(
-                    onTap: onComment,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.comment_outlined,
-                          color: AppColors.textSecondary,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${post.commentsCount}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // Share
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined),
-                    color: AppColors.textSecondary,
-                    onPressed: () {
-                      // TODO: Implementar compartilhar
-                    },
-                  ),
-                ],
+          ],
+          if (post.workout != null && post.workout!.hasNumbers) ...[
+            const SizedBox(height: 12),
+            WorkoutSummaryBlock(workout: post.workout!),
+          ],
+          if (post.image != null && post.image!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.network(
+                post.image!,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
           ],
+          const SizedBox(height: 6),
+          const Divider(height: 18),
+          Row(
+            children: [
+              _ActionButton(
+                icon: post.liked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                label: post.likeCount > 0 ? '${post.likeCount}' : 'Curtir',
+                color: post.liked ? WorkutColors.brand : WorkutColors.muted,
+                onTap: onLike,
+              ),
+              const SizedBox(width: 4),
+              _ActionButton(
+                icon: Icons.mode_comment_outlined,
+                label: post.commentCount > 0
+                    ? '${post.commentCount}'
+                    : 'Comentar',
+                color: WorkutColors.muted,
+                onTap: onComment,
+              ),
+            ],
+          ),
         ],
-      );
-
-    if (!embedInCard) {
-      return content;
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: post.isPinned
-            ? const BorderSide(color: AppColors.primary, width: 2)
-            : BorderSide.none,
       ),
-      child: content,
     );
   }
 }
 
+/// O card de treino do feed: os números da sessão, não texto solto.
+/// É o que faz o seguidor entender o treino em um relance.
+class WorkoutSummaryBlock extends StatelessWidget {
+  const WorkoutSummaryBlock({super.key, required this.workout});
+
+  final WorkoutPostSummary workout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF4F4), Color(0xFFF4F6F9)],
+        ),
+        border: Border.all(color: WorkutColors.brandSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: WorkutColors.brand,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.fitness_center_rounded,
+                    color: Colors.white, size: 17),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  workout.name ?? 'Treino concluído',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              if (workout.prCount > 0)
+                WorkutTag(
+                  label: workout.prCount == 1
+                      ? '1 PR'
+                      : '${workout.prCount} PRs',
+                  icon: Icons.emoji_events_rounded,
+                  color: WorkutColors.gold,
+                  background: WorkutColors.goldSoft,
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _WorkoutMetric(
+                value: Format.volume(workout.volume),
+                label: 'volume',
+                highlight: true,
+              ),
+              _WorkoutMetric(value: '${workout.sets}', label: 'séries'),
+              _WorkoutMetric(
+                value: '${workout.exercises}',
+                label: 'exercícios',
+              ),
+              if (workout.durationMinutes > 0)
+                _WorkoutMetric(
+                  value: '${workout.durationMinutes} min',
+                  label: 'duração',
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkoutMetric extends StatelessWidget {
+  const _WorkoutMetric({
+    required this.value,
+    required this.label,
+    this.highlight = false,
+  });
+
+  final String value;
+  final String label;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: highlight ? 18 : 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
+              color: highlight ? WorkutColors.brand : WorkutColors.ink,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: WorkutColors.muted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+      icon: Icon(icon, size: 19, color: color),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+}

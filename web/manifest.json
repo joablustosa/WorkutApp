@@ -1,11 +1,11 @@
 {
-    "name": "agenda_defesta",
-    "short_name": "agenda_defesta",
+    "name": "Workut",
+    "short_name": "Workut",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Workut - a rede social de quem treina.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

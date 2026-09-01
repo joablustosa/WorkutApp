@@ -1,5 +1,5 @@
 # Script: setup-android-env.ps1
-# Propósito: configurar ANDROID_SDK_ROOT/ANDROID_HOME e adicionar platform-tools e emulator ao PATH.
+# Propósito: configurar Flutter, ANDROID_SDK_ROOT/ANDROID_HOME e adicionar ferramentas ao PATH.
 # Uso: execute no diretório do projeto (padrão) com PowerShell; pode requerer permissão de administrador para alterações em nível Machine.
 
 function Write-Info($m){ Write-Host "[INFO] $m" }
@@ -31,6 +31,18 @@ $sdkPathRaw = $sdkPathRaw.Trim('"')
 $sdkPath = $sdkPathRaw -replace '/', '\\'
 
 Write-Info "SDK detectado em: $sdkPath"
+
+$flutterSdkPath = $null
+$flutterMatch = [regex]::Match($content, 'flutter\.sdk\s*=\s*(.+)')
+if ($flutterMatch.Success) {
+    $flutterSdkPath = ($flutterMatch.Groups[1].Value.Trim().Trim('"') -replace '/', '\\')
+    Write-Info "Flutter detectado em: $flutterSdkPath"
+} elseif (Test-Path 'C:\flutter\bin\flutter.bat') {
+    $flutterSdkPath = 'C:\flutter'
+    Write-Info "Flutter detectado em: $flutterSdkPath (fallback padrão)"
+} else {
+    Write-Warn "Flutter SDK não encontrado. Instale em C:\flutter ou defina flutter.sdk no local.properties."
+}
 
 # Função para adicionar path se estiver faltando (scope: Machine ou User)
 function Add-PathIfMissing([string]$scope, [string]$pathToAdd) {
@@ -74,9 +86,22 @@ if (-not $setMachineOk) {
     }
 }
 
+if ($flutterSdkPath) {
+    try {
+        [Environment]::SetEnvironmentVariable('FLUTTER_ROOT', $flutterSdkPath, 'Machine')
+        Write-Info "Definido FLUTTER_ROOT no nível Machine"
+    } catch {
+        [Environment]::SetEnvironmentVariable('FLUTTER_ROOT', $flutterSdkPath, 'User')
+        Write-Info "Definido FLUTTER_ROOT no nível User"
+    }
+}
+
 # Paths a adicionar
 $platformTools = Join-Path $sdkPath 'platform-tools'
 $emulatorDir = Join-Path $sdkPath 'emulator'
+$cmdlineTools = Join-Path $sdkPath 'cmdline-tools\latest\bin'
+$flutterBin = if ($flutterSdkPath) { Join-Path $flutterSdkPath 'bin' } else { $null }
+$gitCmd = 'C:\Program Files\Git\cmd'
 
 # Tentar adicionar ao PATH do Machine, com fallback para User
 $addedPlatformMachine = $false
@@ -91,19 +116,32 @@ if (-not $addedPlatformMachine) {
     Write-Warn "Tentando adicionar ao PATH do User em vez de Machine"
     Add-PathIfMissing 'User' $platformTools | Out-Null
     Add-PathIfMissing 'User' $emulatorDir | Out-Null
+    if (Test-Path $cmdlineTools) { Add-PathIfMissing 'User' $cmdlineTools | Out-Null }
+    if ($flutterBin -and (Test-Path $flutterBin)) { Add-PathIfMissing 'User' $flutterBin | Out-Null }
+    if (Test-Path $gitCmd) { Add-PathIfMissing 'User' $gitCmd | Out-Null }
+}
+
+if ($flutterBin -and (Test-Path $flutterBin)) {
+    try {
+        Add-PathIfMissing 'Machine' $flutterBin | Out-Null
+    } catch {
+        Add-PathIfMissing 'User' $flutterBin | Out-Null
+    }
 }
 
 # Atualizar sessão atual do PowerShell para refletir mudanças sem reiniciar
 $Env:ANDROID_SDK_ROOT = $sdkPath
 $Env:ANDROID_HOME = $sdkPath
+if ($flutterSdkPath) { $Env:FLUTTER_ROOT = $flutterSdkPath }
 # Atualizar Path de sessão
 $sessionPath = $Env:Path
-if (-not ($sessionPath -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $platformTools })) {
-    $Env:Path = "$sessionPath;$platformTools"
+foreach ($pathToAdd in @($platformTools, $emulatorDir, $cmdlineTools, $flutterBin, $gitCmd)) {
+    if (-not $pathToAdd -or -not (Test-Path $pathToAdd)) { continue }
+    if (-not ($sessionPath -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $pathToAdd })) {
+        $sessionPath = "$sessionPath;$pathToAdd"
+    }
 }
-if (-not ($Env:Path -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $emulatorDir })) {
-    $Env:Path = "$Env:Path;$emulatorDir"
-}
+$Env:Path = $sessionPath
 
 Write-Info "Sessão atual atualizada. As alterações persistentes podem requerer reinício do PowerShell ou logoff/login dependendo do scope usado."
 
@@ -120,5 +158,11 @@ Get-Command sdkmanager -ErrorAction SilentlyContinue | ForEach-Object { Write-Ho
 Write-Host "Onde git: "
 Get-Command git -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.Source }
 
-Write-Info "Script finalizado. Se as ferramentas ainda não forem encontradas no novo terminal, reinicie o PowerShell/VS Code e execute 'flutter doctor -v'."
+if ($flutterBin -and (Test-Path (Join-Path $flutterBin 'flutter.bat'))) {
+    & (Join-Path $flutterBin 'flutter.bat') config --android-studio-dir="C:\Program Files\Android\Android Studio" | Out-Null
+    Write-Info "Flutter configurado para o Android Studio em C:\Program Files\Android\Android Studio"
+}
+
+Write-Info "Script finalizado. Reinicie o Android Studio e execute 'flutter doctor -v' em um terminal novo."
+Write-Info "Se o emulador falhar com INSTALL_FAILED_INSUFFICIENT_STORAGE, reinicie-o com: emulator -avd Pixel_9 -wipe-data"
 
