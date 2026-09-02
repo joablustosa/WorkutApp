@@ -78,7 +78,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
 
   Future<void> _addExercise() async {
     final exercise = await Navigator.of(context).push<Exercise>(
-      MaterialPageRoute(builder: (_) => const ExerciseCatalogScreen()),
+      MaterialPageRoute(
+        builder: (_) => ExerciseCatalogScreen(
+          excludeExerciseIds:
+              _exercises.map((item) => item.exerciseId).toSet(),
+        ),
+      ),
     );
     if (exercise == null) return;
 

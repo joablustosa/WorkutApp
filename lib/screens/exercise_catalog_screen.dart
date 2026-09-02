@@ -20,7 +20,9 @@ const List<String> kExerciseTypes = [
 /// Catálogo de exercícios. Devolve o exercício escolhido para a tela
 /// do treino — e permite cadastrar um novo quando não existe.
 class ExerciseCatalogScreen extends StatefulWidget {
-  const ExerciseCatalogScreen({super.key});
+  const ExerciseCatalogScreen({super.key, this.excludeExerciseIds = const {}});
+
+  final Set<int> excludeExerciseIds;
 
   @override
   State<ExerciseCatalogScreen> createState() => _ExerciseCatalogScreenState();
@@ -68,9 +70,15 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
   }
 
   List<Exercise> get _filtered {
-    if (_term.trim().isEmpty) return _all;
+    var list = _all;
+    if (widget.excludeExerciseIds.isNotEmpty) {
+      list = list
+          .where((exercise) => !widget.excludeExerciseIds.contains(exercise.id))
+          .toList();
+    }
+    if (_term.trim().isEmpty) return list;
     final term = _term.toLowerCase();
-    return _all
+    return list
         .where((exercise) =>
             exercise.name.toLowerCase().contains(term) ||
             (exercise.type ?? '').toLowerCase().contains(term))

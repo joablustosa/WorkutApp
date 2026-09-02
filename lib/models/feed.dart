@@ -72,6 +72,7 @@ class WorkoutPostSummary {
     this.exercises = 0,
     this.durationMinutes = 0,
     this.prCount = 0,
+    this.sportType,
   });
 
   final int? planId;
@@ -81,6 +82,7 @@ class WorkoutPostSummary {
   final int exercises;
   final int durationMinutes;
   final int prCount;
+  final String? sportType;
 
   bool get hasNumbers => sets > 0 || volume > 0;
 
@@ -100,6 +102,7 @@ class WorkoutPostSummary {
       exercises: asInt(json, 'totalExercises') ?? 0,
       durationMinutes: asInt(json, 'durationMinutes') ?? 0,
       prCount: asInt(json, 'prCount') ?? 0,
+      sportType: asString(json, 'sportType'),
     );
   }
 }

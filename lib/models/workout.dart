@@ -35,6 +35,15 @@ class Exercise {
       };
 }
 
+/// Modalidades de treino suportadas pela API.
+const kSportTypes = <String, String>{
+  'gym': 'Academia',
+  'running': 'Corrida',
+  'weightlifting': 'Levantamento',
+  'cycling': 'Ciclismo',
+  'other': 'Outros',
+};
+
 /// Treino montado pelo usuário (`ExerciseSeries/v1`).
 class WorkoutPlan {
   const WorkoutPlan({
@@ -43,6 +52,7 @@ class WorkoutPlan {
     required this.userId,
     this.order,
     this.createdAt,
+    this.sportType,
   });
 
   final int id;
@@ -50,6 +60,7 @@ class WorkoutPlan {
   final int userId;
   final int? order;
   final DateTime? createdAt;
+  final String? sportType;
 
   factory WorkoutPlan.fromJson(Map<String, dynamic> json) {
     return WorkoutPlan(
@@ -58,6 +69,7 @@ class WorkoutPlan {
       userId: asInt(json, 'idUser') ?? 0,
       order: asInt(json, 'myOrder'),
       createdAt: asDate(json, 'dateTimeCreated'),
+      sportType: asString(json, 'sportType') ?? 'gym',
     );
   }
 
@@ -67,6 +79,7 @@ class WorkoutPlan {
         'idUser': userId,
         'dateTimeCreated': toApiDate(createdAt ?? DateTime.now()),
         'myOrder': order,
+        'sportType': sportType ?? 'gym',
       };
 }
 

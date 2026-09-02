@@ -6,9 +6,9 @@ import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/feed.dart';
 import '../models/workout.dart';
+import '../services/feed_service.dart';
 import '../services/workout_service.dart';
 import '../widgets/common.dart';
-import 'post_composer_screen.dart';
 
 /// Treino finalizado.
 ///
@@ -19,11 +19,13 @@ class WorkoutSummaryScreen extends StatefulWidget {
     super.key,
     required this.planId,
     required this.planName,
+    this.sportType,
     this.fallbackDuration,
   });
 
   final int planId;
   final String planName;
+  final String? sportType;
 
   /// Duração medida na sessão, usada se a API devolver zero.
   final Duration? fallbackDuration;
@@ -35,6 +37,7 @@ class WorkoutSummaryScreen extends StatefulWidget {
 class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   WorkoutSession _session = WorkoutSession.empty;
   bool _loading = true;
+  bool _publishing = false;
   String? _error;
 
   int get _minutes {
@@ -97,25 +100,34 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   }
 
   Future<void> _publish() async {
-    final published = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => PostComposerScreen(
-          initialContent: _suggestedCaption(),
-          postType: FeedPost.kWorkoutType,
-          workout: WorkoutPostSummary(
-            planId: widget.planId,
-            name: widget.planName,
-            volume: _session.totalVolume,
-            sets: _session.totalSets,
-            exercises: _session.totalExercises,
-            durationMinutes: _minutes,
-            prCount: _session.prCount,
-          ),
-        ),
-      ),
+    final caption = _suggestedCaption();
+    final workout = WorkoutPostSummary(
+      planId: widget.planId,
+      name: widget.planName,
+      volume: _session.totalVolume,
+      sets: _session.totalSets,
+      exercises: _session.totalExercises,
+      durationMinutes: _minutes,
+      prCount: _session.prCount,
+      sportType: widget.sportType,
     );
 
-    if (published == true && mounted) Navigator.of(context).pop();
+    setState(() => _publishing = true);
+    try {
+      await FeedService.createWorkoutPost(
+        content: caption,
+        workout: workout,
+        exercises: _session.exercises,
+        sportType: widget.sportType,
+      );
+      if (!mounted) return;
+      showToast(context, 'Treino publicado no feed!');
+      Navigator.of(context).pop();
+    } on ApiException catch (error) {
+      if (mounted) showToast(context, error.message, isError: true);
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
   }
 
   @override
@@ -147,9 +159,18 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
                     Expanded(
                       flex: 2,
                       child: FilledButton.icon(
-                        onPressed: _publish,
-                        icon: const Icon(Icons.ios_share_rounded, size: 19),
-                        label: const Text('Publicar treino'),
+                        onPressed: _publishing ? null : _publish,
+                        icon: _publishing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.ios_share_rounded, size: 19),
+                        label: Text(_publishing ? 'Publicando...' : 'Publicar treino'),
                       ),
                     ),
                   ],

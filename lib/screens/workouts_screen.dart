@@ -65,15 +65,18 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
   }
 
   Future<void> _createPlan() async {
-    final name = await _askName(title: 'Novo treino', hint: 'Ex.: Peito e tríceps');
-    if (name == null) return;
+    final result = await _askPlanDetails(title: 'Novo treino');
+    if (result == null) return;
 
     try {
-      final plan = await WorkoutService.createPlan(name);
+      final plan = await WorkoutService.createPlan(
+        result.name,
+        sportType: result.sportType,
+      );
       if (!mounted) return;
       await _load();
       if (!mounted) return;
-      _openPlan(plan.id == 0 ? _plans.last : plan);
+      _openPlan(_resolvePlan(plan));
     } on ApiException catch (error) {
       if (mounted) showToast(context, error.message, isError: true);
     }
@@ -128,39 +131,103 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
     required String title,
     required String hint,
     String? initial,
+  }) async {
+    final result = await _askPlanDetails(
+      title: title,
+      hint: hint,
+      initial: initial,
+    );
+    return result?.name;
+  }
+
+  Future<_PlanFormResult?> _askPlanDetails({
+    required String title,
+    String hint = 'Ex.: Peito e tríceps',
+    String? initial,
   }) {
     final controller = TextEditingController(text: initial ?? '');
-    return showDialog<String>(
+    var sportType = kSportTypes.keys.first;
+
+    return showDialog<_PlanFormResult>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(hintText: hint),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(hintText: hint),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Modalidade',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: sportType,
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: kSportTypes.entries
+                      .map(
+                        (entry) => DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => sportType = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) {
+                  Navigator.of(context).pop(
+                    _PlanFormResult(name: value, sportType: sportType),
+                  );
+                }
+              },
+              style: FilledButton.styleFrom(minimumSize: const Size(90, 42)),
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isNotEmpty) Navigator.of(context).pop(value);
-            },
-            style: FilledButton.styleFrom(minimumSize: const Size(90, 42)),
-            child: const Text('Salvar'),
-          ),
-        ],
       ),
     );
   }
 
+  WorkoutPlan _resolvePlan(WorkoutPlan plan) {
+    if (plan.id != 0) return plan;
+    if (_plans.isEmpty) return plan;
+    return _plans.firstWhere(
+      (item) => item.name == plan.name,
+      orElse: () => _plans.last,
+    );
+  }
+
   Future<void> _openPlan(WorkoutPlan plan) async {
+    final target = _resolvePlan(plan);
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => PlanDetailScreen(plan: plan)),
+      MaterialPageRoute(builder: (_) => PlanDetailScreen(plan: target)),
     );
     if (mounted) _load();
   }
@@ -280,6 +347,17 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
                         color: WorkutColors.muted,
                       ),
                     ),
+                    if (plan.sportType != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        kSportTypes[plan.sportType] ?? plan.sportType!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: WorkutColors.brand,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -301,4 +379,11 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
       },
     );
   }
+}
+
+class _PlanFormResult {
+  const _PlanFormResult({required this.name, required this.sportType});
+
+  final String name;
+  final String sportType;
 }

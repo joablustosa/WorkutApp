@@ -60,7 +60,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final file = await PhotoService.pick(source: source);
       if (file == null) return;
 
-      final url = await PhotoService.upload(file);
+      final url = await PhotoService.uploadProfile(file);
       await UserService.updatePhoto(user, url);
 
       if (!mounted) return;

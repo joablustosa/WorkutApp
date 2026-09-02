@@ -215,6 +215,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
         builder: (_) => WorkoutSummaryScreen(
           planId: widget.plan.id,
           planName: widget.plan.name,
+          sportType: widget.plan.sportType,
           fallbackDuration: _elapsed,
         ),
       ),

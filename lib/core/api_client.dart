@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
+import 'api_constants.dart';
 import 'session.dart';
 
 class ApiException implements Exception {
@@ -22,7 +26,15 @@ class ApiException implements Exception {
 class ApiClient {
   ApiClient._();
 
-  static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _timeout = Duration(seconds: 60);
+  static const Duration _retryDelay = Duration(seconds: 2);
+  static const int _maxAttempts = 2;
+
+  static final http.Client _client = IOClient(
+    HttpClient()
+      ..connectionTimeout = _timeout
+      ..idleTimeout = _timeout,
+  );
 
   static Map<String, String> _headers({bool json = true}) {
     final token = Session.instance.token;
@@ -34,7 +46,7 @@ class ApiClient {
   }
 
   static Future<dynamic> get(String url) async {
-    return _send(() => http.get(Uri.parse(url), headers: _headers()));
+    return _send(() => _client.get(Uri.parse(url), headers: _headers()));
   }
 
   static Future<List<Map<String, dynamic>>> getList(String url) async {
@@ -53,7 +65,7 @@ class ApiClient {
 
   static Future<dynamic> post(String url, Object? body) async {
     return _send(
-      () => http.post(
+      () => _client.post(
         Uri.parse(url),
         headers: _headers(),
         body: jsonEncode(body),
@@ -63,7 +75,7 @@ class ApiClient {
 
   static Future<dynamic> put(String url, Object? body) async {
     return _send(
-      () => http.put(
+      () => _client.put(
         Uri.parse(url),
         headers: _headers(),
         body: jsonEncode(body),
@@ -72,23 +84,20 @@ class ApiClient {
   }
 
   static Future<dynamic> delete(String url) async {
-    return _send(() => http.delete(Uri.parse(url), headers: _headers()));
+    return _send(() => _client.delete(Uri.parse(url), headers: _headers()));
   }
 
-  /// Envia uma imagem para `File/v1/uploadFile` e devolve a URL pública.
-  ///
-  /// A API só aceita `.jpg`, `.jpeg` e `.png` — o nome do arquivo precisa
-  /// chegar com a extensão certa.
-  static Future<String> uploadImage(Uint8List bytes, String filename) async {
+  /// Envia foto de perfil para `File/v1/uploadProfile` e devolve a URL pública.
+  static Future<String> uploadProfileImage(Uint8List bytes, String filename) async {
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('${_filesBase()}/uploadFile'),
+      Uri.parse('${ApiConstants.files}/uploadProfile'),
     )
       ..headers.addAll(_headers(json: false))
       ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
 
     try {
-      final streamed = await request.send().timeout(_timeout);
+      final streamed = await _client.send(request).timeout(_timeout);
       final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -111,19 +120,31 @@ class ApiClient {
     }
   }
 
-  static String _filesBase() {
-    // Evita import circular com ApiConstants em tempo de compilação web.
-    return 'https://workutapi-ewfaggdga2aaeghx.eastus2-01.azurewebsites.net/api/File/v1';
-  }
+  /// @deprecated Use [uploadProfileImage] — upload genérico desativado na API.
+  static Future<String> uploadImage(Uint8List bytes, String filename) =>
+      uploadProfileImage(bytes, filename);
 
   static Future<dynamic> _send(Future<http.Response> Function() request) async {
-    http.Response response;
-    try {
-      response = await request().timeout(_timeout);
-    } catch (error) {
-      throw ApiException(_friendlyNetworkError(error));
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= _maxAttempts; attempt++) {
+      try {
+        final response = await request().timeout(_timeout);
+        return await _handleResponse(response);
+      } catch (error) {
+        if (error is ApiException) rethrow;
+        lastError = error;
+        if (!_shouldRetry(error) || attempt == _maxAttempts) {
+          throw ApiException(_friendlyNetworkError(error));
+        }
+        await Future<void>.delayed(_retryDelay);
+      }
     }
 
+    throw ApiException(_friendlyNetworkError(lastError ?? 'unknown'));
+  }
+
+  static Future<dynamic> _handleResponse(http.Response response) async {
     if (response.statusCode == 401) {
       await Session.instance.clear();
       throw ApiException(
@@ -149,16 +170,43 @@ class ApiClient {
     }
   }
 
+  static bool _shouldRetry(Object error) {
+    if (error is TimeoutException) return true;
+    if (error is SocketException) return true;
+    if (error is http.ClientException) return true;
+    final text = error.toString().toLowerCase();
+    return text.contains('timeout') ||
+        text.contains('connection') ||
+        text.contains('socket');
+  }
+
   static String _friendlyNetworkError(Object error) {
     final text = error.toString().toLowerCase();
-    if (text.contains('socket') ||
-        text.contains('failed host lookup') ||
-        text.contains('network')) {
-      return 'Sem conexão com a internet. Tente de novo.';
+
+    if (text.contains('timeoutexception') ||
+        text.contains('timed out') ||
+        text.contains('timeout')) {
+      return 'O servidor demorou para responder. Tente novamente.';
     }
-    if (text.contains('timeout')) {
-      return 'O servidor demorou demais para responder.';
+
+    if (text.contains('failed host lookup') ||
+        text.contains('no address associated with hostname')) {
+      return 'Sem conexão com a internet. Verifique sua rede.';
     }
+
+    if (text.contains('connection refused') ||
+        text.contains('network is unreachable')) {
+      return 'Não foi possível conectar ao servidor do Workut.';
+    }
+
+    if (text.contains('handshake') || text.contains('certificate')) {
+      return 'Falha de segurança na conexão com o servidor.';
+    }
+
+    if (text.contains('socket') || text.contains('clientexception')) {
+      return 'Falha de conexão. Tente novamente em instantes.';
+    }
+
     return 'Não foi possível falar com o servidor. Tente de novo.';
   }
 

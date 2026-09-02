@@ -46,18 +46,19 @@ class WorkoutService {
     return rows.map(WorkoutPlan.fromJson).toList();
   }
 
-  static Future<WorkoutPlan> createPlan(String name) async {
+  static Future<WorkoutPlan> createPlan(String name, {String sportType = 'gym'}) async {
     final userId = Session.instance.userId;
     final response = await ApiClient.post(ApiConstants.exerciseSeries, {
       'id': null,
       'name': name,
       'idUser': userId,
       'dateTimeCreated': toApiDate(DateTime.now()),
+      'sportType': sportType,
     });
     if (response is Map) {
       return WorkoutPlan.fromJson(response.cast<String, dynamic>());
     }
-    return WorkoutPlan(id: 0, name: name, userId: userId);
+    return WorkoutPlan(id: 0, name: name, userId: userId, sportType: sportType);
   }
 
   static Future<void> renamePlan(WorkoutPlan plan, String name) {
@@ -67,6 +68,7 @@ class WorkoutService {
       'idUser': plan.userId,
       'dateTimeCreated': toApiDate(plan.createdAt ?? DateTime.now()),
       'myOrder': plan.order,
+      'sportType': plan.sportType ?? 'gym',
     });
   }
 

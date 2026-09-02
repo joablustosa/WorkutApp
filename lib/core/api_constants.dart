@@ -4,7 +4,7 @@
 /// consumam exatamente os mesmos recursos.
 class ApiConstants {
   static const String baseServer =
-      'https://workutapi-ewfaggdga2aaeghx.eastus2-01.azurewebsites.net';
+      'https://workutapi-ewfaggdga2aaeghx.austriaeast-01.azurewebsites.net';
 
   static const String login = '$baseServer/api/Login/v1';
   static const String users = '$baseServer/api/Users/v1';
@@ -12,6 +12,7 @@ class ApiConstants {
   static const String home = '$baseServer/api/Homes/v1';
 
   static const String feedPosts = '$baseServer/api/FeedPosts/v1';
+  static const String feedPostsWorkout = '$feedPosts/workout';
   static const String postLikes = '$baseServer/api/PostLikes/v1';
   static const String postComments = '$baseServer/api/PostComments/v1';
 
