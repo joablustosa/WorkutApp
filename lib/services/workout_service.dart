@@ -7,10 +7,17 @@ import '../models/workout.dart';
 class WorkoutService {
   // --- Catálogo de exercícios -------------------------------------------
 
-  static Future<List<Exercise>> catalog() async {
-    final rows = await ApiClient.getList(ApiConstants.exercises);
+  static Future<List<Exercise>> catalog({String? type}) async {
+    final url = type == null || type.isEmpty
+        ? ApiConstants.exercises
+        : '${ApiConstants.exercises}?type=${Uri.encodeComponent(type)}';
+    final rows = await ApiClient.getList(url);
     final exercises = rows.map(Exercise.fromJson).toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      ..sort((a, b) {
+        final sub = (a.subType ?? '').compareTo(b.subType ?? '');
+        if (sub != 0) return sub;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
     return exercises;
   }
 
@@ -22,6 +29,7 @@ class WorkoutService {
   static Future<Exercise> createExercise({
     required String name,
     required String type,
+    String? subType,
     String? image,
     String? link,
   }) async {
@@ -29,6 +37,7 @@ class WorkoutService {
       'id': null,
       'name': name,
       'type': type,
+      'subType': subType ?? '',
       'image': image ?? '',
       'link': link ?? '',
     });
@@ -93,8 +102,11 @@ class WorkoutService {
   static Future<void> addExerciseToPlan({
     required int planId,
     required int exerciseId,
-  }) {
-    return ApiClient.post(ApiConstants.exerciseBySeries, {
+  }) async {
+    if (exerciseId <= 0) {
+      throw ApiException('Exercício inválido. Escolha um exercício do catálogo.');
+    }
+    await ApiClient.post(ApiConstants.exerciseBySeries, {
       'id': null,
       'idSerie': planId,
       'idUser': Session.instance.userId,
@@ -188,18 +200,68 @@ class WorkoutService {
     return ApiClient.delete('${ApiConstants.exerciseDaillys}/$setId');
   }
 
-  /// Resumo do dia inteiro: volume, séries, exercícios e PRs. Uma
-  /// chamada só, calculada na API.
+  /// Resumo do dia — pode filtrar pelos exercícios do treino atual.
   static Future<WorkoutSession> sessionSummary({
     required int userId,
     DateTime? day,
+    int? planId,
+    List<int>? exerciseIds,
   }) async {
     final date = toApiDay(day ?? DateTime.now());
-    final data = await ApiClient.getObject(
-      '${ApiConstants.exerciseDaillys}/GetSessionSummary'
-      '?idUser=$userId&date=$date',
+    final buffer = StringBuffer(
+      '${ApiConstants.exerciseDaillys}/GetSessionSummary?idUser=$userId&date=$date',
     );
+    if (planId != null && planId > 0) {
+      buffer.write('&idSerie=$planId');
+    }
+    if (exerciseIds != null && exerciseIds.isNotEmpty) {
+      buffer.write('&exerciseIds=${exerciseIds.join(',')}');
+    }
+    final data = await ApiClient.getObject(buffer.toString());
     return WorkoutSession.fromJson(data);
+  }
+
+  // --- Sessão de treino (início/fim) ------------------------------------
+
+  static Future<WorkoutSessionRecord> startSession({
+    required int planId,
+    required int userId,
+  }) async {
+    final response = await ApiClient.post('${ApiConstants.workoutSessions}/start', {
+      'idSerie': planId,
+      'idUser': userId,
+    });
+    if (response is Map) {
+      return WorkoutSessionRecord.fromJson(response.cast<String, dynamic>());
+    }
+    throw ApiException('Não foi possível iniciar o treino.');
+  }
+
+  static Future<WorkoutSessionRecord> endSession(int sessionId) async {
+    final response = await ApiClient.put(
+      '${ApiConstants.workoutSessions}/end/$sessionId',
+      null,
+    );
+    if (response is Map) {
+      return WorkoutSessionRecord.fromJson(response.cast<String, dynamic>());
+    }
+    throw ApiException('Não foi possível finalizar o treino.');
+  }
+
+  static Future<WorkoutSessionRecord?> activeSession({
+    required int planId,
+    required int userId,
+  }) async {
+    try {
+      final data = await ApiClient.getObject(
+        '${ApiConstants.workoutSessions}/active?idUser=$userId&idSerie=$planId',
+      );
+      if (data.isEmpty) return null;
+      return WorkoutSessionRecord.fromJson(data);
+    } on ApiException catch (error) {
+      if (error.statusCode == 204) return null;
+      rethrow;
+    }
   }
 
   /// Junta as séries de hoje de todos os exercícios de um treino —

@@ -20,15 +20,19 @@ class WorkoutSummaryScreen extends StatefulWidget {
     required this.planId,
     required this.planName,
     this.sportType,
+    this.exerciseIds = const [],
     this.fallbackDuration,
+    this.startedAt,
+    this.endedAt,
   });
 
   final int planId;
   final String planName;
   final String? sportType;
-
-  /// Duração medida na sessão, usada se a API devolver zero.
+  final List<int> exerciseIds;
   final Duration? fallbackDuration;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
 
   @override
   State<WorkoutSummaryScreen> createState() => _WorkoutSummaryScreenState();
@@ -41,6 +45,10 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   String? _error;
 
   int get _minutes {
+    if (widget.startedAt != null && widget.endedAt != null) {
+      final diff = widget.endedAt!.difference(widget.startedAt!).inMinutes;
+      if (diff > 0) return diff;
+    }
     if (_session.durationMinutes > 0) return _session.durationMinutes;
     return widget.fallbackDuration?.inMinutes ?? 0;
   }
@@ -60,6 +68,9 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
     try {
       final session = await WorkoutService.sessionSummary(
         userId: Session.instance.userId,
+        planId: widget.planId,
+        exerciseIds:
+            widget.exerciseIds.isEmpty ? null : widget.exerciseIds,
       );
       if (!mounted) return;
       setState(() {

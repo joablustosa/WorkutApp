@@ -23,6 +23,7 @@ class ApiConstants {
   static const String exerciseSeries = '$baseServer/api/ExerciseSeries/v1';
   static const String exerciseBySeries = '$baseServer/api/ExerciseBySeries/v1';
   static const String exerciseDaillys = '$baseServer/api/ExerciseDaillys/v1';
+  static const String workoutSessions = '$baseServer/api/WorkoutSessions/v1';
 
   static const String myTestimonies = '$baseServer/api/MyTestimonies/v1';
   static const String testimonyLikes = '$baseServer/api/TestimonyLikes/v1';

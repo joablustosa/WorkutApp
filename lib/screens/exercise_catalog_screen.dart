@@ -2,27 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
 import '../core/theme.dart';
+import '../data/gym_exercise_categories.dart';
 import '../models/workout.dart';
 import '../services/workout_service.dart';
 import '../widgets/common.dart';
 
-const List<String> kExerciseTypes = [
-  'Peito',
-  'Costas',
-  'Perna',
-  'Ombro',
-  'Bíceps',
-  'Tríceps',
-  'Abdômen',
-  'Cardio',
-];
-
-/// Catálogo de exercícios. Devolve o exercício escolhido para a tela
-/// do treino — e permite cadastrar um novo quando não existe.
+/// Catálogo de exercícios com filtro por grupo muscular.
+/// Agrupa por subcategoria para facilitar a montagem do treino.
 class ExerciseCatalogScreen extends StatefulWidget {
-  const ExerciseCatalogScreen({super.key, this.excludeExerciseIds = const {}});
+  const ExerciseCatalogScreen({
+    super.key,
+    this.excludeExerciseIds = const {},
+    this.initialCategory,
+  });
 
   final Set<int> excludeExerciseIds;
+  final String? initialCategory;
 
   @override
   State<ExerciseCatalogScreen> createState() => _ExerciseCatalogScreenState();
@@ -34,10 +29,12 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
   bool _loading = true;
   String? _error;
   String _term = '';
+  late String _category;
 
   @override
   void initState() {
     super.initState();
+    _category = widget.initialCategory ?? kGymCategories.first;
     _load();
   }
 
@@ -54,7 +51,7 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
     });
 
     try {
-      final exercises = await WorkoutService.catalog();
+      final exercises = await WorkoutService.catalog(type: _category);
       if (!mounted) return;
       setState(() {
         _all = exercises;
@@ -69,6 +66,12 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
     }
   }
 
+  void _selectCategory(String category) {
+    if (_category == category) return;
+    setState(() => _category = category);
+    _load();
+  }
+
   List<Exercise> get _filtered {
     var list = _all;
     if (widget.excludeExerciseIds.isNotEmpty) {
@@ -81,15 +84,26 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
     return list
         .where((exercise) =>
             exercise.name.toLowerCase().contains(term) ||
-            (exercise.type ?? '').toLowerCase().contains(term))
+            (exercise.subType ?? '').toLowerCase().contains(term))
         .toList();
+  }
+
+  Map<String, List<Exercise>> get _grouped {
+    final map = <String, List<Exercise>>{};
+    for (final exercise in _filtered) {
+      final key = exercise.subType?.trim().isNotEmpty == true
+          ? exercise.subType!
+          : 'Geral';
+      map.putIfAbsent(key, () => []).add(exercise);
+    }
+    return map;
   }
 
   Future<void> _createExercise() async {
     final created = await showModalBottomSheet<Exercise>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _NewExerciseSheet(),
+      builder: (_) => _NewExerciseSheet(initialCategory: _category),
     );
 
     if (created != null && mounted) {
@@ -112,14 +126,40 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SizedBox(
+            height: 46,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              itemCount: kGymCategories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final category = kGymCategories[index];
+                final selected = category == _category;
+                return FilterChip(
+                  label: Text(category),
+                  selected: selected,
+                  showCheckmark: false,
+                  selectedColor: WorkutColors.brand,
+                  onSelected: (_) => _selectCategory(category),
+                  labelStyle: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : WorkutColors.brandDark,
+                  ),
+                );
+              },
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
             child: TextField(
               controller: _searchController,
               onChanged: (value) => setState(() => _term = value),
               decoration: InputDecoration(
-                hintText: 'Buscar exercício...',
+                hintText: 'Buscar em $_category...',
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: _term.isEmpty
                     ? null
@@ -149,12 +189,12 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
       return ErrorState(message: _error!, onRetry: _load);
     }
 
-    final exercises = _filtered;
-    if (exercises.isEmpty) {
+    final grouped = _grouped;
+    if (grouped.isEmpty) {
       return EmptyState(
         icon: Icons.search_off_rounded,
-        title: 'Nenhum exercício encontrado',
-        message: 'Cadastre um novo exercício e ele fica disponível para todos.',
+        title: 'Nenhum exercício em $_category',
+        message: 'Cadastre um novo ou escolha outra categoria.',
         action: SizedBox(
           width: 230,
           child: FilledButton.icon(
@@ -166,69 +206,72 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      itemCount: exercises.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+    final sections = grouped.keys.toList()..sort();
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      itemCount: sections.length,
       itemBuilder: (context, index) {
-        final exercise = exercises[index];
-        return WorkutCard(
-          onTap: () => Navigator.of(context).pop(exercise),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: WorkutColors.background,
-                  borderRadius: BorderRadius.circular(12),
+        final section = sections[index];
+        final exercises = grouped[section]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
+              child: Text(
+                section,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: WorkutColors.muted,
+                  letterSpacing: 0.2,
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: exercise.image == null || exercise.image!.isEmpty
-                    ? const Icon(Icons.sports_gymnastics_rounded,
-                        color: WorkutColors.brand, size: 21)
-                    : Image.network(
-                        exercise.image!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.sports_gymnastics_rounded,
-                          color: WorkutColors.brand,
-                          size: 21,
-                        ),
-                      ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      exercise.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (exercise.type != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        exercise.type!,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: WorkutColors.muted,
+            ),
+            for (final exercise in exercises)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: WorkutCard(
+                  onTap: () => Navigator.of(context).pop(exercise),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: WorkutColors.brandSoft,
+                          borderRadius: BorderRadius.circular(11),
                         ),
+                        child: const Icon(
+                          Icons.fitness_center_rounded,
+                          color: WorkutColors.brand,
+                          size: 19,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          exercise.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.add_circle_rounded,
+                        color: WorkutColors.brand,
+                        size: 22,
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
-              const Icon(Icons.add_circle_outline_rounded,
-                  color: WorkutColors.brand),
-            ],
-          ),
+          ],
         );
       },
     );
@@ -236,7 +279,9 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
 }
 
 class _NewExerciseSheet extends StatefulWidget {
-  const _NewExerciseSheet();
+  const _NewExerciseSheet({required this.initialCategory});
+
+  final String initialCategory;
 
   @override
   State<_NewExerciseSheet> createState() => _NewExerciseSheetState();
@@ -244,13 +289,21 @@ class _NewExerciseSheet extends StatefulWidget {
 
 class _NewExerciseSheetState extends State<_NewExerciseSheet> {
   final _nameController = TextEditingController();
+  final _subTypeController = TextEditingController();
   final _linkController = TextEditingController();
-  String _type = kExerciseTypes.first;
+  late String _type;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _type = widget.initialCategory;
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _subTypeController.dispose();
     _linkController.dispose();
     super.dispose();
   }
@@ -267,6 +320,7 @@ class _NewExerciseSheetState extends State<_NewExerciseSheet> {
       final exercise = await WorkoutService.createExercise(
         name: name,
         type: _type,
+        subType: _subTypeController.text.trim(),
         link: _linkController.text.trim(),
       );
       if (!mounted) return;
@@ -306,31 +360,25 @@ class _NewExerciseSheetState extends State<_NewExerciseSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Grupo muscular',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final type in kExerciseTypes)
-                    ChoiceChip(
-                      label: Text(type),
-                      selected: _type == type,
-                      showCheckmark: false,
-                      selectedColor: WorkutColors.brand,
-                      onSelected: (_) => setState(() => _type = type),
-                      labelStyle: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: _type == type
-                            ? Colors.white
-                            : WorkutColors.brandDark,
-                      ),
-                    ),
+              DropdownButtonFormField<String>(
+                value: _type,
+                decoration: const InputDecoration(labelText: 'Grupo muscular'),
+                items: [
+                  for (final type in kGymCategories)
+                    DropdownMenuItem(value: type, child: Text(type)),
                 ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _type = value);
+                },
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _subTypeController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Subcategoria (opcional)',
+                  hintText: 'Ex.: Peitoral superior',
+                ),
               ),
               const SizedBox(height: 14),
               TextField(
@@ -338,7 +386,6 @@ class _NewExerciseSheetState extends State<_NewExerciseSheet> {
                 keyboardType: TextInputType.url,
                 decoration: const InputDecoration(
                   labelText: 'Link de referência (opcional)',
-                  hintText: 'Vídeo mostrando a execução',
                 ),
               ),
               const SizedBox(height: 20),

@@ -78,7 +78,7 @@ class ApiClient {
       () => _client.put(
         Uri.parse(url),
         headers: _headers(),
-        body: jsonEncode(body),
+        body: body == null ? null : jsonEncode(body),
       ),
     );
   }
@@ -211,6 +211,19 @@ class ApiClient {
   }
 
   static String _friendlyStatusError(int status, String body) {
+    if (body.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map) {
+          final message = decoded['message'] ?? decoded['Message'] ?? decoded['title'];
+          if (message != null && message.toString().trim().isNotEmpty) {
+            return message.toString();
+          }
+        }
+      } catch (_) {}
+      if (body.length < 200 && !body.startsWith('{')) return body;
+    }
+
     switch (status) {
       case 400:
         return 'Dados inválidos. Confira o que foi preenchido.';

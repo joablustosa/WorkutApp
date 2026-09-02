@@ -170,6 +170,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
         builder: (_) => WorkoutSummaryScreen(
           planId: widget.plan.id,
           planName: widget.plan.name,
+          sportType: widget.plan.sportType,
+          exerciseIds: _exercises.map((e) => e.exerciseId).toList(),
         ),
       ),
     );

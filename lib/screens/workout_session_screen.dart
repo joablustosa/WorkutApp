@@ -42,9 +42,11 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   late List<PlanExercise> _exercises = List.of(widget.exercises);
   Timer? _ticker;
   DateTime _startedAt = DateTime.now();
+  DateTime? _endedAt;
   Duration _elapsed = Duration.zero;
   bool _loading = true;
   String? _error;
+  WorkoutSessionRecord? _sessionRecord;
 
   int get _userId => Session.instance.userId;
 
@@ -75,12 +77,19 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     });
 
     try {
-      final sets = await WorkoutService.planSetsOfDay(
+      final sessionFuture = WorkoutService.activeSession(
+        planId: widget.plan.id,
+        userId: _userId,
+      );
+      final setsFuture = WorkoutService.planSetsOfDay(
         exercises: _exercises,
         userId: _userId,
       );
 
-      // Se já havia série registrada hoje, o cronômetro continua de onde parou.
+      final results = await Future.wait([sessionFuture, setsFuture]);
+      final session = results[0] as WorkoutSessionRecord?;
+      final sets = results[1] as Map<int, List<WorkoutSet>>;
+
       final registered = sets.values.expand((list) => list).toList();
       final firstAt = registered
           .map((set) => set.createdAt)
@@ -88,12 +97,25 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
           .fold<DateTime?>(null, (earliest, date) =>
               earliest == null || date.isBefore(earliest) ? date : earliest);
 
+      WorkoutSessionRecord? activeSession = session;
+      if (activeSession == null) {
+        try {
+          activeSession = await WorkoutService.startSession(
+            planId: widget.plan.id,
+            userId: _userId,
+          );
+        } catch (_) {
+          // Sem sessão na API o cronômetro local ainda funciona.
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _sets
           ..clear()
           ..addAll(sets);
-        _startedAt = firstAt ?? DateTime.now();
+        _sessionRecord = activeSession;
+        _startedAt = activeSession?.startedAt ?? firstAt ?? DateTime.now();
         _elapsed = DateTime.now().difference(_startedAt);
         _loading = false;
       });
@@ -210,13 +232,27 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       return;
     }
 
+    _endedAt = DateTime.now();
+    WorkoutSessionRecord? endedSession;
+    if (_sessionRecord != null) {
+      try {
+        endedSession = await WorkoutService.endSession(_sessionRecord!.id);
+      } catch (_) {
+        // O resumo usa o horário local se a API falhar.
+      }
+    }
+
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => WorkoutSummaryScreen(
           planId: widget.plan.id,
           planName: widget.plan.name,
           sportType: widget.plan.sportType,
+          exerciseIds: _exercises.map((e) => e.exerciseId).toList(),
           fallbackDuration: _elapsed,
+          startedAt: endedSession?.startedAt ?? _sessionRecord?.startedAt ?? _startedAt,
+          endedAt: endedSession?.endedAt ?? _endedAt,
         ),
       ),
     );

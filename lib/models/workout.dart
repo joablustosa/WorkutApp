@@ -8,6 +8,7 @@ class Exercise {
     this.image,
     this.link,
     this.type,
+    this.subType,
   });
 
   final int id;
@@ -15,6 +16,7 @@ class Exercise {
   final String? image;
   final String? link;
   final String? type;
+  final String? subType;
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
     return Exercise(
@@ -23,6 +25,7 @@ class Exercise {
       image: asString(json, 'image'),
       link: asString(json, 'link'),
       type: asString(json, 'type'),
+      subType: asString(json, 'subType'),
     );
   }
 
@@ -32,6 +35,7 @@ class Exercise {
         'image': image ?? '',
         'link': link ?? '',
         'type': type ?? 'Musculação',
+        'subType': subType ?? '',
       };
 }
 
@@ -306,9 +310,13 @@ class WorkoutSession {
     required this.prCount,
     required this.durationMinutes,
     required this.exercises,
+    this.startedAt,
+    this.endedAt,
   });
 
   final DateTime date;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
   final double totalVolume;
   final int totalSets;
   final int doneSets;
@@ -326,6 +334,8 @@ class WorkoutSession {
     prCount: 0,
     durationMinutes: 0,
     exercises: const [],
+    startedAt: null,
+    endedAt: null,
   );
 
   bool get hasWork => totalSets > 0;
@@ -334,6 +344,8 @@ class WorkoutSession {
     final rows = pick(json, 'exercises');
     return WorkoutSession(
       date: asDate(json, 'date') ?? DateTime.now(),
+      startedAt: asDate(json, 'startedAt'),
+      endedAt: asDate(json, 'endedAt'),
       totalVolume: asDouble(json, 'totalVolume') ?? 0,
       totalSets: asInt(json, 'totalSets') ?? 0,
       doneSets: asInt(json, 'doneSets') ?? 0,
@@ -385,6 +397,33 @@ class SessionExercise {
       bestWeight: asDouble(json, 'bestWeight') ?? 0,
       bestReps: asInt(json, 'bestReps') ?? 0,
       isPr: asBool(json, 'isPr'),
+    );
+  }
+}
+
+/// Sessão ativa de treino (início/fim gravados na API).
+class WorkoutSessionRecord {
+  const WorkoutSessionRecord({
+    required this.id,
+    required this.planId,
+    required this.userId,
+    this.startedAt,
+    this.endedAt,
+  });
+
+  final int id;
+  final int planId;
+  final int userId;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+
+  factory WorkoutSessionRecord.fromJson(Map<String, dynamic> json) {
+    return WorkoutSessionRecord(
+      id: asInt(json, 'id') ?? 0,
+      planId: asInt(json, 'idSerie') ?? 0,
+      userId: asInt(json, 'idUser') ?? 0,
+      startedAt: asDate(json, 'startedAt'),
+      endedAt: asDate(json, 'endedAt'),
     );
   }
 }
