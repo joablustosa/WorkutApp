@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
@@ -19,22 +21,41 @@ class PeopleScreen extends StatefulWidget {
 
 class _PeopleScreenState extends State<PeopleScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   List<Person> _people = [];
   bool _loading = true;
   String? _error;
   String _term = '';
   final Set<int> _busy = {};
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
     _load();
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final term = _searchController.text.trim();
+    setState(() => _term = term);
+
+    _searchDebounce?.cancel();
+    if (term.length >= 2) {
+      _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+        _searchRemote(term);
+      });
+    } else if (term.isEmpty) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -50,6 +71,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
         _people = people;
         _loading = false;
       });
+      _scrollToPendingIfNeeded();
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -59,19 +81,64 @@ class _PeopleScreenState extends State<PeopleScreen> {
     }
   }
 
+  Future<void> _searchRemote(String term) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final people = await SocialService.search(term);
+      if (!mounted) return;
+      setState(() {
+        _people = people;
+        _loading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _loading = false;
+      });
+    }
+  }
+
+  void _scrollToPendingIfNeeded() {
+    if (!widget.showPendingFirst) return;
+    if (_people.where((person) => person.isPendingReceived).isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   List<Person> get _pending =>
       _people.where((person) => person.isPendingReceived).toList();
 
   List<Person> get _filtered {
     final term = _term.trim().toLowerCase();
-    final list = term.isEmpty
+    final useRemote = term.length >= 2;
+    final list = useRemote
         ? _people
-        : _people
-            .where((person) => person.fullName.toLowerCase().contains(term))
-            .toList();
+        : (term.isEmpty
+            ? _people
+            : _people
+                .where((person) => person.fullName.toLowerCase().contains(term))
+                .toList());
 
-    // Quem ainda não sigo aparece primeiro: é o que dá o que fazer.
-    list.sort((a, b) {
+    final sorted = [...list];
+    sorted.sort((a, b) {
+      if (widget.showPendingFirst) {
+        if (a.isPendingReceived != b.isPendingReceived) {
+          return a.isPendingReceived ? -1 : 1;
+        }
+      }
+
       int rank(Person person) {
         if (person.isPendingReceived) return 0;
         if (person.status == 'nenhum') return 1;
@@ -83,14 +150,18 @@ class _PeopleScreenState extends State<PeopleScreen> {
       if (byRank != 0) return byRank;
       return a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
     });
-    return list;
+    return sorted;
   }
 
   Future<void> _run(Person person, Future<void> Function() action) async {
     setState(() => _busy.add(person.userId));
     try {
       await action();
-      await _load();
+      if (_term.trim().length >= 2) {
+        await _searchRemote(_term.trim());
+      } else {
+        await _load();
+      }
     } on ApiException catch (error) {
       if (mounted) showToast(context, error.message, isError: true);
     } finally {
@@ -117,7 +188,6 @@ class _PeopleScreenState extends State<PeopleScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               controller: _searchController,
-              onChanged: (value) => setState(() => _term = value),
               decoration: InputDecoration(
                 hintText: 'Buscar quem treina...',
                 prefixIcon: const Icon(Icons.search_rounded),
@@ -127,6 +197,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _term = '');
+                          _load();
                         },
                         icon: const Icon(Icons.close_rounded),
                       ),
@@ -135,7 +206,12 @@ class _PeopleScreenState extends State<PeopleScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: () {
+                if (_term.trim().length >= 2) {
+                  return _searchRemote(_term.trim());
+                }
+                return _load();
+              },
               color: WorkutColors.brand,
               child: _buildBody(),
             ),
@@ -153,6 +229,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
     }
     if (_error != null) {
       return ListView(
+        controller: _scrollController,
         children: [
           const SizedBox(height: 60),
           ErrorState(message: _error!, onRetry: _load),
@@ -165,6 +242,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     if (people.isEmpty) {
       return ListView(
+        controller: _scrollController,
         children: const [
           SizedBox(height: 40),
           EmptyState(
@@ -177,6 +255,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
     }
 
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       physics: const AlwaysScrollableScrollPhysics(),
       children: [

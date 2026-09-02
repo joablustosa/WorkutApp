@@ -40,24 +40,17 @@ class SocialService {
     return all.where((person) => person.isPendingReceived).toList();
   }
 
-  /// Envia o pedido de amizade e já registra o "fã" — assim o contador
-  /// de fãs do perfil (`Homes/v1`) reflete quem te segue.
+  /// Envia pedido de amizade via endpoint semântico.
   static Future<void> follow(int otherUserId) async {
-    final me = Session.instance.userId;
-
-    await ApiClient.post(ApiConstants.myFriends, {
-      'id': null,
-      'idUser': me,
+    await ApiClient.post('${ApiConstants.myFriends}/follow', {
       'idUserFriend': otherUserId,
-      'status': 'pending',
-      'dateTimeCreate': toApiDate(DateTime.now()),
     });
 
     try {
       await ApiClient.post('${ApiConstants.users}/MyFan', {
         'id': null,
         'idUser': otherUserId,
-        'idUserFan': me,
+        'idUserFan': Session.instance.userId,
         'dateTimeCreate': toApiDate(DateTime.now()),
       });
     } catch (_) {
@@ -66,20 +59,23 @@ class SocialService {
   }
 
   static Future<void> acceptFollow(Person person) {
-    return ApiClient.put(ApiConstants.myFriends, {
-      'id': person.friendshipId,
-      'idUser': person.linkUserId,
-      'idUserFriend': Session.instance.userId,
-      'status': 'accepted',
-      'dateTimeCreate': toApiDate(DateTime.now()),
-    });
+    final friendshipId = person.friendshipId;
+    if (friendshipId == null || friendshipId == 0) {
+      throw ApiException('Pedido não encontrado.');
+    }
+    return ApiClient.post(
+      '${ApiConstants.myFriends}/accept/$friendshipId',
+      const {},
+    );
   }
 
   static Future<void> unfollow(Person person) {
-    if (person.friendshipId == null || person.friendshipId == 0) {
-      throw ApiException('Vínculo não encontrado.');
+    if (person.userId <= 0) {
+      throw ApiException('Usuário não encontrado.');
     }
-    return ApiClient.delete('${ApiConstants.myFriends}/${person.friendshipId}');
+    return ApiClient.delete(
+      '${ApiConstants.myFriends}/unfollow/${person.userId}',
+    );
   }
 
   /// Situação do meu vínculo com um usuário específico.
