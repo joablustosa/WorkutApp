@@ -40,7 +40,7 @@ class SocialService {
     return all.where((person) => person.isPendingReceived).toList();
   }
 
-  /// Envia pedido de amizade via endpoint semântico.
+  /// Segue a pessoa imediatamente (status accepted na API).
   static Future<void> follow(int otherUserId) async {
     await ApiClient.post('${ApiConstants.myFriends}/follow', {
       'idUserFriend': otherUserId,

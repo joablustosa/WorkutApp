@@ -9,7 +9,7 @@ import '../services/social_service.dart';
 import '../widgets/common.dart';
 import 'profile_screen.dart';
 
-/// Descobrir gente para seguir e responder aos pedidos recebidos.
+/// Descobrir gente para seguir e gerenciar quem você já segue.
 class PeopleScreen extends StatefulWidget {
   const PeopleScreen({super.key, this.showPendingFirst = false});
 
@@ -120,6 +120,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
   List<Person> get _pending =>
       _people.where((person) => person.isPendingReceived).toList();
 
+  List<Person> get _following =>
+      _people.where((person) => person.isFollowing).toList();
+
   List<Person> get _filtered {
     final term = _term.trim().toLowerCase();
     final useRemote = term.length >= 2;
@@ -143,7 +146,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
         if (person.isPendingReceived) return 0;
         if (person.status == 'nenhum') return 1;
         if (person.isPendingSent) return 2;
-        return 3;
+        return 3; // already following
       }
 
       final byRank = rank(a).compareTo(rank(b));
@@ -239,6 +242,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     final people = _filtered;
     final pending = _pending;
+    final followingCount = _following.length;
 
     if (people.isEmpty) {
       return ListView(
@@ -261,8 +265,14 @@ class _PeopleScreenState extends State<PeopleScreen> {
       children: [
         if (pending.isNotEmpty && _term.isEmpty) ...[
           SectionHeader(
-            title: 'Pedidos para seguir você',
+            title: 'Pedidos pendentes',
             subtitle: '${pending.length} esperando resposta',
+          ),
+          const SizedBox(height: 4),
+        ] else if (_term.isEmpty && followingCount > 0) ...[
+          SectionHeader(
+            title: 'Pessoas',
+            subtitle: 'Você segue $followingCount',
           ),
           const SizedBox(height: 4),
         ],
@@ -382,10 +392,10 @@ class _PersonTile extends StatelessWidget {
       return OutlinedButton(
         onPressed: onUnfollow,
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(96, 38),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: const Size(120, 38),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
         ),
-        child: const Text('Seguindo'),
+        child: const Text('Deixar de seguir'),
       );
     }
 
@@ -397,7 +407,7 @@ class _PersonTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           foregroundColor: WorkutColors.muted,
         ),
-        child: const Text('Solicitado'),
+        child: const Text('Cancelar'),
       );
     }
 
@@ -413,8 +423,8 @@ class _PersonTile extends StatelessWidget {
 
   static String _statusLabel(Person person) {
     if (person.isPendingReceived) return 'Quer seguir você';
-    if (person.isPendingSent) return 'Aguardando aceite';
-    if (person.isFollowing) return 'Vocês treinam juntos';
-    return 'Ainda não conectados';
+    if (person.isPendingSent) return 'Pedido enviado';
+    if (person.isFollowing) return 'Você segue';
+    return 'Sugestão para seguir';
   }
 }

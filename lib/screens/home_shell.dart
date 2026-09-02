@@ -17,13 +17,14 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  int _feedRefreshToken = 0;
 
   @override
   Widget build(BuildContext context) {
     final me = Session.instance.user;
 
     final pages = <Widget>[
-      const FeedScreen(),
+      FeedScreen(refreshToken: _feedRefreshToken),
       const WorkoutsScreen(),
       const PeopleScreen(),
       const RankingScreen(),
@@ -38,7 +39,15 @@ class _HomeShellState extends State<HomeShell> {
         ),
         child: NavigationBar(
           selectedIndex: _index,
-          onDestinationSelected: (value) => setState(() => _index = value),
+          onDestinationSelected: (value) {
+            setState(() {
+              // Ao voltar para o Feed, recarrega posts de quem você segue.
+              if (value == 0 && _index != 0) {
+                _feedRefreshToken++;
+              }
+              _index = value;
+            });
+          },
           backgroundColor: WorkutColors.surface,
           surfaceTintColor: Colors.transparent,
           indicatorColor: WorkutColors.brandSoft,

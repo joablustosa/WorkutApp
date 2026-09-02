@@ -15,7 +15,11 @@ import 'post_composer_screen.dart';
 import 'profile_screen.dart';
 
 class FeedScreen extends StatefulWidget {
-  const FeedScreen({super.key});
+  const FeedScreen({super.key, this.refreshToken = 0});
+
+  /// Incrementado pelo [HomeShell] ao voltar para a aba Feed, para
+  /// recarregar posts de quem você acabou de seguir.
+  final int refreshToken;
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -31,6 +35,14 @@ class _FeedScreenState extends State<FeedScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant FeedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      _load();
+    }
   }
 
   Future<void> _load() async {

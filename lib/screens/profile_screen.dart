@@ -95,12 +95,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final relation = _relation;
       if (relation == null || relation.status == 'nenhum') {
         await SocialService.follow(widget.userId);
-        if (mounted) showToast(context, 'Pedido enviado!');
+        if (mounted) showToast(context, 'Agora você segue!');
       } else if (relation.isPendingReceived) {
         await SocialService.acceptFollow(relation);
-        if (mounted) showToast(context, 'Agora vocês treinam juntos!');
+        if (mounted) showToast(context, 'Agora você segue!');
       } else {
         await SocialService.unfollow(relation);
+        if (mounted) showToast(context, 'Deixou de seguir');
       }
 
       final updated = await SocialService.relationWith(widget.userId);
@@ -585,8 +586,8 @@ class _ProfileHeader extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size.fromHeight(46),
         ),
-        icon: const Icon(Icons.check_rounded, size: 18),
-        label: const Text('Seguindo'),
+        icon: const Icon(Icons.person_remove_outlined, size: 18),
+        label: const Text('Deixar de seguir'),
       );
     }
 
@@ -597,7 +598,7 @@ class _ProfileHeader extends StatelessWidget {
           minimumSize: const Size.fromHeight(46),
           foregroundColor: WorkutColors.muted,
         ),
-        child: const Text('Solicitado'),
+        child: const Text('Cancelar pedido'),
       );
     }
 
