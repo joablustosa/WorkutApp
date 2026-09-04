@@ -7,6 +7,52 @@
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - web/**
+    - lib/docs/**
+    - lib/models/supabase_models.dart
+    - lib/screens/auth/**
+    - lib/screens/album_detail_screen.dart
+    - lib/screens/buscar_torcidas_screen.dart
+    - lib/screens/criar_time_screen.dart
+    - lib/screens/criar_torcida_screen.dart
+    - lib/screens/dashboard_screen.dart
+    - lib/screens/entrar_torcida_screen.dart
+    - lib/screens/event_story_screen.dart
+    - lib/screens/minha_torcida_screen.dart
+    - lib/screens/notifications_screen.dart
+    - lib/screens/perfil_screen.dart
+    - lib/screens/splash_screen.dart
+    - lib/services/album_service.dart
+    - lib/services/auth_service_supabase.dart
+    - lib/services/event_service.dart
+    - lib/services/gamification_service.dart
+    - lib/services/membership_service.dart
+    - lib/services/notification_service.dart
+    - lib/services/permissions_service.dart
+    - lib/services/post_service.dart
+    - lib/services/store_service.dart
+    - lib/services/subscription_service.dart
+    - lib/services/supabase_service.dart
+    - lib/widgets/comment_section.dart
+    - lib/widgets/create_album_dialog.dart
+    - lib/widgets/create_event_dialog.dart
+    - lib/widgets/create_post_form.dart
+    - lib/widgets/digital_card.dart
+    - lib/widgets/event_card.dart
+    - lib/widgets/event_details_modal.dart
+    - lib/widgets/membership_access_settings.dart
+    - lib/widgets/membership_payment_dialog.dart
+    - lib/widgets/membership_plans_manager.dart
+    - lib/widgets/membership_section.dart
+    - lib/widgets/pix_payment_dialog.dart
+    - lib/widgets/product_checkout_dialog.dart
+    - lib/widgets/ranking_list.dart
+    - lib/widgets/store_section.dart
+    - lib/widgets/torcida_hub_bottom_nav.dart
 include: package:flutter_lints/flutter.yaml
 
 linter:

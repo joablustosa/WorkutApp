@@ -2,20 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 
-/// Marca do Workut: halter vermelho + wordmark, o mesmo desenho do logo
-/// oficial e da classe `.workut-logo` do workutFront.
+/// Marca do Workut: logo oficial + wordmark.
 class WorkutLogo extends StatelessWidget {
   const WorkutLogo({
     super.key,
     this.size = 30,
     this.onDark = false,
+    this.showWordmark = true,
   });
 
-  /// Altura do selo do halter. O wordmark acompanha proporcionalmente.
+  /// Altura do selo da logo. O wordmark acompanha proporcionalmente.
   final double size;
 
-  /// Em fundo escuro o selo fica translucido e o texto branco.
+  /// Em fundo escuro o texto fica branco.
   final bool onDark;
+
+  /// Exibe o texto "WORKUT" ao lado da logo.
+  final bool showWordmark;
 
   @override
   Widget build(BuildContext context) {
@@ -23,31 +26,28 @@ class WorkutLogo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: onDark
-                ? Colors.white.withValues(alpha: 0.16)
-                : WorkutColors.brand,
-            borderRadius: BorderRadius.circular(size * 0.32),
-          ),
-          child: Icon(
-            Icons.fitness_center_rounded,
-            size: size * 0.58,
-            color: Colors.white,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.5),
+          child: Image.asset(
+            'assets/icon_launcher.png',
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
           ),
         ),
-        SizedBox(width: size * 0.28),
-        Text(
-          'WORKUT',
-          style: TextStyle(
-            fontSize: size * 0.72,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.6,
-            color: onDark ? Colors.white : WorkutColors.ink,
+        if (showWordmark) ...[
+          SizedBox(width: size * 0.28),
+          Text(
+            'WORKUT',
+            style: TextStyle(
+              fontSize: size * 0.72,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+              color: onDark ? Colors.white : WorkutColors.ink,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -77,7 +77,7 @@ class BrandHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const WorkutLogo(size: 34, onDark: true),
+          const WorkutLogo(size: 40, onDark: true),
           const SizedBox(height: 22),
           Text(
             title,

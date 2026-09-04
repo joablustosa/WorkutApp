@@ -56,7 +56,7 @@ class WorkutTheme {
         surfaceTintColor: Colors.transparent,
         foregroundColor: WorkutColors.ink,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleTextStyle: TextStyle(
           color: WorkutColors.ink,
