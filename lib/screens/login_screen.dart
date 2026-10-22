@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
+import '../core/responsive.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
-import '../widgets/brand.dart';
+import '../widgets/auth_layout.dart';
 import '../widgets/common.dart';
 import 'register_screen.dart';
 
@@ -48,98 +49,85 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return AuthLayout(
+      title: 'A rede social\nde quem treina.',
+      subtitle:
+          'Poste seu treino, siga a galera, deixe depoimentos e bata seus PRs.',
+      footer: _Highlights(onDark: context.isWide),
+      child: Form(
+        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const BrandHeader(
-              title: 'A rede social\nde quem treina.',
-              subtitle:
-                  'Poste seu treino, siga a galera, deixe depoimentos e bata seus PRs.',
+            const Text(
+              'Entrar',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Entrar',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      autocorrect: false,
-                      decoration: const InputDecoration(
-                        labelText: 'E-mail',
-                        prefixIcon: Icon(Icons.alternate_email_rounded),
-                      ),
-                      validator: (value) => (value == null || value.trim().isEmpty)
-                          ? 'Informe seu e-mail'
-                          : null,
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscure,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
-                      decoration: InputDecoration(
-                        labelText: 'Senha',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(
-                            _obscure
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            color: WorkutColors.muted,
-                          ),
-                        ),
-                      ),
-                      validator: (value) => (value == null || value.isEmpty)
-                          ? 'Informe sua senha'
-                          : null,
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Entrar no Workut'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _loading
-                          ? null
-                          : () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const RegisterScreen(),
-                                ),
-                              ),
-                      child: const Text('Criar minha conta'),
-                    ),
-                    const SizedBox(height: 28),
-                    const _Highlights(),
-                  ],
+            const SizedBox(height: 18),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: 'E-mail',
+                prefixIcon: Icon(Icons.alternate_email_rounded),
+              ),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Informe seu e-mail'
+                  : null,
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscure,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                labelText: 'Senha',
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    color: WorkutColors.muted,
+                  ),
                 ),
               ),
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Informe sua senha'
+                  : null,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Entrar no Workut'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _loading
+                  ? null
+                  : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const RegisterScreen(),
+                        ),
+                      ),
+              child: const Text('Criar minha conta'),
             ),
           ],
         ),
@@ -149,7 +137,10 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class _Highlights extends StatelessWidget {
-  const _Highlights();
+  const _Highlights({this.onDark = false});
+
+  /// Em tela larga os destaques descem para o painel de marca (fundo escuro).
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
@@ -170,18 +161,26 @@ class _Highlights extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: WorkutColors.brandSoft,
+                    color: onDark
+                        ? Colors.white.withValues(alpha: 0.16)
+                        : WorkutColors.brandSoft,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(item.$1, size: 19, color: WorkutColors.brand),
+                  child: Icon(
+                    item.$1,
+                    size: 19,
+                    color: onDark ? Colors.white : WorkutColors.brand,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     item.$2,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      color: WorkutColors.muted,
+                    style: TextStyle(
+                      fontSize: onDark ? 14.5 : 13.5,
+                      color: onDark
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : WorkutColors.muted,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

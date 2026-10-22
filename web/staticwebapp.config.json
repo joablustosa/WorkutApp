@@ -1,0 +1,46 @@
+{
+    "navigationFallback": {
+        "rewrite": "/index.html",
+        "exclude": [
+            "/assets/*",
+            "/canvaskit/*",
+            "/icons/*",
+            "/*.js",
+            "/*.json",
+            "/*.png",
+            "/*.wasm"
+        ]
+    },
+    "mimeTypes": {
+        ".js": "text/javascript",
+        ".json": "application/json",
+        ".wasm": "application/wasm",
+        ".otf": "font/otf",
+        ".ttf": "font/ttf"
+    },
+    "routes": [
+        {
+            "route": "/sw.js",
+            "headers": {
+                "Cache-Control": "no-cache",
+                "Service-Worker-Allowed": "/"
+            }
+        },
+        {
+            "route": "/index.html",
+            "headers": { "Cache-Control": "no-cache" }
+        },
+        {
+            "route": "/flutter_bootstrap.js",
+            "headers": { "Cache-Control": "no-cache" }
+        },
+        {
+            "route": "/manifest.json",
+            "headers": { "Cache-Control": "no-cache" }
+        },
+        {
+            "route": "/canvaskit/*",
+            "headers": { "Cache-Control": "public, max-age=31536000, immutable" }
+        }
+    ]
+}

@@ -1,38 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    Caminho base da aplicacao. O `flutter build web` troca o valor pelo
+    `--base-href`; servindo na raiz do site, fica "/".
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Workut - a rede social de quem treina.">
+  <!--
+    Sem esta linha o celular renderiza a pagina como se fosse um desktop de
+    980px e depois encolhe tudo: e o que fazia o app parecer "zoom out" no
+    navegador do telefone. `viewport-fit=cover` deixa o app ir ate a borda
+    nos aparelhos com notch.
+  -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="description" content="Workut - a rede social de quem treina. Poste seu treino, siga amigos, deixe depoimentos e bata seus PRs.">
+  <meta name="theme-color" content="#ED1C24">
+  <meta name="color-scheme" content="light">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Compartilhamento -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Workut">
+  <meta property="og:title" content="Workut - a rede social de quem treina">
+  <meta property="og:description" content="Poste seu treino, siga amigos, deixe depoimentos e bata seus PRs.">
+  <meta property="og:image" content="icons/Icon-512.png">
+  <meta name="twitter:card" content="summary">
+
+  <!-- iOS: instalacao pela tela inicial do Safari -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Workut">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="manifest" href="manifest.json">
 
   <title>Workut</title>
-  <link rel="manifest" href="manifest.json">
+
+  <style>
+    :root {
+      --workut-brand: #ED1C24;
+      --workut-ink: #1B2430;
+      --workut-bg: #F6F7F9;
+      --workut-line: #E6E8EE;
+      --workut-muted: #6B7280;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--workut-bg);
+      font-family: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+      overscroll-behavior: none;
+    }
+
+    /* Splash de marca: cobre a tela ate o Flutter pintar o primeiro frame. */
+    #workut-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      background: linear-gradient(135deg, var(--workut-ink), var(--workut-brand));
+      transition: opacity .3s ease;
+    }
+
+    #workut-splash.is-gone {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #workut-splash img {
+      width: 108px;
+      height: 108px;
+      border-radius: 28px;
+      background: #fff;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    #workut-splash .wordmark {
+      color: #fff;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+
+    #workut-splash .spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(255, 255, 255, .35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: workut-spin 0.9s linear infinite;
+    }
+
+    @keyframes workut-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Convite para instalar como app. Fica fora do Flutter de proposito:
+       o evento `beforeinstallprompt` so existe no lado do navegador. */
+    #workut-install {
+      position: fixed;
+      z-index: 9;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--workut-line);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 12px 32px rgba(27, 36, 48, .18);
+      font-size: 14px;
+      color: var(--workut-ink);
+    }
+
+    #workut-install.is-open { display: flex; }
+
+    #workut-install img { width: 38px; height: 38px; border-radius: 11px; }
+    #workut-install .text { flex: 1; line-height: 1.35; }
+    #workut-install .text strong { display: block; font-weight: 800; }
+    #workut-install .text span { color: var(--workut-muted); font-size: 12.5px; }
+
+    #workut-install button {
+      font: inherit;
+      font-weight: 800;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 16px;
+      background: var(--workut-brand);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    #workut-install .close {
+      background: transparent;
+      color: var(--workut-muted);
+      font-weight: 700;
+      padding: 10px 6px;
+    }
+
+    @media (min-width: 700px) {
+      #workut-install {
+        left: auto;
+        right: 24px;
+        bottom: 24px;
+        max-width: 420px;
+      }
+    }
+
+    /* Aviso de versao nova, criado pelo pwa.js depois de um deploy. */
+    #workut-update {
+      position: fixed;
+      z-index: 9;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px 10px 16px;
+      border-radius: 14px;
+      background: var(--workut-ink);
+      color: #fff;
+      font-size: 13.5px;
+      box-shadow: 0 12px 32px rgba(27, 36, 48, .28);
+    }
+
+    #workut-update button {
+      font: inherit;
+      font-weight: 800;
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 14px;
+      background: var(--workut-brand);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    noscript {
+      display: block;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--workut-ink);
+    }
+  </style>
 </head>
 <body>
+  <div id="workut-splash">
+    <img src="icons/Icon-192.png" alt="Workut">
+    <div class="wordmark">WORKUT</div>
+    <div class="spinner"></div>
+  </div>
+
+  <div id="workut-install" role="dialog" aria-label="Instalar o Workut">
+    <img src="icons/Icon-192.png" alt="">
+    <div class="text">
+      <strong>Instalar o Workut</strong>
+      <span id="workut-install-hint">Abra direto da tela inicial, sem navegador.</span>
+    </div>
+    <button type="button" id="workut-install-action">Instalar</button>
+    <button type="button" class="close" id="workut-install-dismiss" aria-label="Agora nao">&times;</button>
+  </div>
+
+  <noscript>
+    O Workut precisa de JavaScript para funcionar. Ative o JavaScript no seu
+    navegador e recarregue a pagina.
+  </noscript>
+
+  <script src="pwa.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/api_client.dart';
+import '../core/responsive.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
@@ -79,6 +80,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showPhotoOptions() {
+    // No desktop web não existe câmera para abrir: vai direto ao seletor
+    // de arquivos do navegador, sem a folha de opções.
+    if (context.isDesktopWeb) {
+      _changePhoto(ImageSource.gallery);
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(

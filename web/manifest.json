@@ -1,23 +1,31 @@
 {
-    "name": "Workut",
+    "name": "Workut - a rede social de quem treina",
     "short_name": "Workut",
-    "start_url": ".",
+    "description": "Poste seu treino, siga amigos, deixe depoimentos e bata seus PRs.",
+    "lang": "pt-BR",
+    "dir": "ltr",
+    "id": "/",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Workut - a rede social de quem treina.",
-    "orientation": "portrait-primary",
+    "display_override": ["standalone", "minimal-ui", "browser"],
+    "orientation": "any",
+    "background_color": "#FFFFFF",
+    "theme_color": "#ED1C24",
+    "categories": ["health", "fitness", "social", "lifestyle"],
     "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-maskable-192.png",
@@ -30,6 +38,29 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Feed",
+            "short_name": "Feed",
+            "description": "Ver os treinos de quem voce segue",
+            "url": "/?tab=feed",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Meus treinos",
+            "short_name": "Treinos",
+            "description": "Abrir a lista de treinos",
+            "url": "/?tab=treinos",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Ranking",
+            "short_name": "Ranking",
+            "description": "Ver o ranking de PRs",
+            "url": "/?tab=ranking",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
         }
     ]
 }

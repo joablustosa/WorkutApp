@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 
 import 'api_constants.dart';
+import 'platform/http_client.dart';
 import 'session.dart';
 
 class ApiException implements Exception {
@@ -30,11 +29,7 @@ class ApiClient {
   static const Duration _retryDelay = Duration(seconds: 2);
   static const int _maxAttempts = 2;
 
-  static final http.Client _client = IOClient(
-    HttpClient()
-      ..connectionTimeout = _timeout
-      ..idleTimeout = _timeout,
-  );
+  static final http.Client _client = createHttpClient(_timeout);
 
   static Map<String, String> _headers({bool json = true}) {
     final token = Session.instance.token;
@@ -172,7 +167,7 @@ class ApiClient {
 
   static bool _shouldRetry(Object error) {
     if (error is TimeoutException) return true;
-    if (error is SocketException) return true;
+    if (isTransientNetworkError(error)) return true;
     if (error is http.ClientException) return true;
     final text = error.toString().toLowerCase();
     return text.contains('timeout') ||
@@ -192,6 +187,13 @@ class ApiClient {
     if (text.contains('failed host lookup') ||
         text.contains('no address associated with hostname')) {
       return 'Sem conexão com a internet. Verifique sua rede.';
+    }
+
+    // No navegador uma rede caída (ou um CORS barrado) chega como
+    // "Failed to fetch" / "XMLHttpRequest error".
+    if (text.contains('failed to fetch') ||
+        text.contains('xmlhttprequest')) {
+      return 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
     }
 
     if (text.contains('connection refused') ||

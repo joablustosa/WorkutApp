@@ -29,6 +29,53 @@ Resumo: vermelho `#ED1C24` do logo para ação e curtida, ink `#1B2430` para
 texto e superfícies escuras, dourado `#F5A524` só para PR e ranking, cartões
 brancos de raio 20 com borda fina e sem sombra, tipografia Roboto.
 
+## Web e PWA
+
+O mesmo código roda no navegador e é instalável como app (PWA). Não há uma
+segunda implementação: o que o site serve é este app compilado para web.
+
+| | Onde fica |
+| --- | --- |
+| Quebra de layout | [lib/core/responsive.dart](lib/core/responsive.dart) (`WorkutLayout`, `AppColumn`) |
+| Navegação por largura | [lib/screens/home_shell.dart](lib/screens/home_shell.dart) |
+| Telas de entrada | [lib/widgets/auth_layout.dart](lib/widgets/auth_layout.dart) |
+| Cliente HTTP por plataforma | [lib/core/platform/](lib/core/platform/) |
+| Casca do PWA | [web/](web/) — `index.html`, `manifest.json`, `sw.js`, `pwa.js` |
+| Ícones do PWA | `python tool/gen_web_icons.py` gera `web/icons/` a partir de `assets/icon.png` |
+
+Três larguras, um app:
+
+- **< 700px** (celular): navegação embaixo, conteúdo ocupando tudo — o desenho
+  original, sem mudança.
+- **700–1100px** (tablet, janela estreita): trilho lateral de ícones.
+- **> 1100px** (desktop): trilho aberto com rótulos e conteúdo numa coluna de
+  820px, para o feed não esticar de ponta a ponta no monitor.
+
+Pontos do web que não são óbvios:
+
+- **`dart:io` não existe no navegador.** O `ApiClient` escolhe o cliente HTTP
+  por `export` condicional (`IOClient` no celular, `BrowserClient` no web).
+  Importar `dart:io` em qualquer arquivo que o `main.dart` alcance quebra o
+  build web.
+- **Fotos** já sobem como bytes (`XFile.readAsBytes`), que funciona nas duas
+  pontas. No desktop web não há câmera: a opção "tirar foto" some e o clique
+  abre direto o seletor de arquivos.
+- **Service worker próprio** (`web/sw.js`). O do Flutter foi descontinuado na
+  3.47 e hoje é um stub que se desregistra sozinho — sem ele não há cache,
+  nem offline, nem convite de instalação. O `web/flutter_bootstrap.js` é
+  customizado justamente para o Flutter não registrar o dele.
+- **Atalhos do PWA** abrem direto numa aba via `?tab=feed|treinos|ranking`.
+
+Build:
+
+```bash
+flutter build web --release --base-href "/"
+```
+
+Deploy: `.github/workflows/azure-static-web-apps.yml` publica `build/web` no
+Static Web App. O `web/staticwebapp.config.json` vai junto no build e cuida do
+fallback de rota e dos cabeçalhos de cache.
+
 ## Estrutura
 
 ```

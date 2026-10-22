@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'core/responsive.dart';
 import 'core/session.dart';
 import 'core/theme.dart';
 import 'screens/home_shell.dart';
@@ -23,6 +24,8 @@ class WorkutApp extends StatelessWidget {
       title: 'Workut',
       debugShowCheckedModeBanner: false,
       theme: WorkutTheme.build(),
+      // No web, deixa arrastar listas com o mouse/trackpad, não só a roda.
+      scrollBehavior: const WorkutScrollBehavior(),
       locale: const Locale('pt', 'BR'),
       supportedLocales: const [Locale('pt', 'BR')],
       localizationsDelegates: const [
