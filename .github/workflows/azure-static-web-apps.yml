@@ -1,0 +1,59 @@
+name: Deploy Workut web (Azure Static Web Apps)
+
+# Publica o app Flutter compilado para web na raiz do site.
+#
+# Pre-requisito: o secret AZURE_STATIC_WEB_APPS_API_TOKEN neste repositorio,
+# com o mesmo token do Static Web App (Azure Portal > Static Web App >
+# Visao geral > Gerenciar token de implantacao).
+#
+# Atencao: este Static Web App recebia o front Angular (repositorio
+# WorkutClassified). Com os dois workflows ligados, o ultimo push vence e
+# derruba o outro. Desligue o deploy de la antes de ligar este.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    name: Build e deploy do Workut web
+    steps:
+      - name: Confere o token de deploy
+        env:
+          DEPLOY_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          if [ -z "$DEPLOY_TOKEN" ]; then
+            echo "::error::Falta o secret AZURE_STATIC_WEB_APPS_API_TOKEN neste repositorio."
+            echo "Crie em: https://github.com/joablustosa/WorkutApp/settings/secrets/actions/new"
+            echo "Nome exato: AZURE_STATIC_WEB_APPS_API_TOKEN"
+            exit 1
+          fi
+          echo "Secret de deploy encontrado."
+
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --release --base-href "/"
+
+      - name: Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "build/web"
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
